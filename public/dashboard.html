@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🌱 Smart Farm Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .user-menu {
+      position: relative;
+      cursor: pointer;
+    }
+
+    .user-dropdown {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 0;
+      min-width: 150px;
+      display: none;
+      z-index: 100;
+    }
+
+    .user-dropdown.active {
+      display: block;
+    }
+
+    .user-dropdown a {
+      display: block;
+      padding: 10px 16px;
+      color: var(--text-primary);
+      text-decoration: none;
+      transition: background 0.2s;
+    }
+
+    .user-dropdown a:hover {
+      background: var(--bg-card-hover);
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="header-content">
+      <div class="logo">
+        <span class="logo-icon">🌱</span>
+        <h1>Smart Farm Dashboard</h1>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-primary" onclick="openAddDeviceModal()">
+          <span>➕</span> เพิ่มอุปกรณ์
+        </button>
+        <div class="user-menu" onclick="toggleUserMenu()">
+          <span id="user-email">👤 Admin</span>
+          <div class="user-dropdown" id="user-dropdown">
+            <a href="#" onclick="logout()">🚪 ออกจากระบบ</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Stats Overview -->
+    <section class="stats-overview">
+      <div class="stat-card">
+        <div class="stat-icon">📱</div>
+        <div class="stat-info">
+          <span class="stat-value" id="total-devices">0</span>
+          <span class="stat-label">อุปกรณ์ทั้งหมด</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">🟢</div>
+        <div class="stat-info">
+          <span class="stat-value" id="online-devices">0</span>
+          <span class="stat-label">ออนไลน์</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">💦</div>
+        <div class="stat-info">
+          <span class="stat-value" id="watering-devices">0</span>
+          <span class="stat-label">กำลังรดน้ำ</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">⚠️</div>
+        <div class="stat-info">
+          <span class="stat-value" id="alert-devices">0</span>
+          <span class="stat-label">ต้องดูแล</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Devices Grid -->
+    <section class="devices-section">
+      <div class="section-header">
+        <h2>🌿 อุปกรณ์ทั้งหมด</h2>
+        <div class="view-toggle">
+          <button class="active" onclick="setView('grid', event)">▦</button>
+          <button onclick="setView('list', event)">☰</button>
+        </div>
+      </div>
+      <div class="devices-grid" id="devices-container"></div>
+    </section>
+  </main>
+
+  <!-- Add Device Modal -->
+  <div class="modal-overlay" id="add-device-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>➕ เพิ่มอุปกรณ์ใหม่</h3>
+        <button class="modal-close" onclick="closeAddDeviceModal()">✕</button>
+      </div>
+      <form class="modal-form" onsubmit="addDevice(event)">
+        <div class="form-group">
+          <label>ชื่ออุปกรณ์</label>
+          <input type="text" id="device-name" placeholder="เช่น สวนหน้าบ้าน" required>
+        </div>
+        <div class="form-group">
+          <label>IP Address</label>
+          <input type="text" id="device-ip" placeholder="เช่น 192.168.0.110" required>
+        </div>
+        <div class="form-group">
+          <label>โซน</label>
+          <select id="device-zone">
+            <option value="garden">🌳 สวน</option>
+            <option value="balcony">🏠 ระเบียง</option>
+            <option value="greenhouse">🏡 โรงเรือน</option>
+            <option value="indoor">🪴 ในร่ม</option>
+          </select>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeAddDeviceModal()">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary">เพิ่มอุปกรณ์</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Device Detail Modal -->
+  <div class="modal-overlay" id="device-detail-modal">
+    <div class="modal modal-large">
+      <div class="modal-header">
+        <h3 id="detail-device-name">สวนหน้าบ้าน</h3>
+        <button class="modal-close" onclick="closeDetailModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="detail-sensors">
+          <div class="detail-sensor">
+            <span class="detail-icon">🌡️</span>
+            <span class="detail-value" id="detail-temp">--°C</span>
+            <span class="detail-label">อุณหภูมิ</span>
+          </div>
+          <div class="detail-sensor">
+            <span class="detail-icon">💧</span>
+            <span class="detail-value" id="detail-humidity">--%</span>
+            <span class="detail-label">ความชื้นอากาศ</span>
+          </div>
+          <div class="detail-sensor">
+            <span class="detail-icon">🌱</span>
+            <span class="detail-value" id="detail-soil">--%</span>
+            <span class="detail-label">ความชื้นดิน</span>
+          </div>
+        </div>
+        <div class="detail-controls">
+          <h4>🎮 ควบคุม</h4>
+          <div class="control-buttons">
+            <button class="btn btn-success btn-large" onclick="controlPump(true)">💦 เปิดปั๊ม</button>
+            <button class="btn btn-danger btn-large" onclick="controlPump(false)">🛑 ปิดปั๊ม</button>
+          </div>
+          <div class="mode-toggle">
+            <label>โหมด:</label>
+            <button class="btn btn-mode active" id="mode-auto">🔄 อัตโนมัติ</button>
+            <button class="btn btn-mode" id="mode-manual">✋ ควบคุมเอง</button>
+          </div>
+        </div>
+        <div class="detail-history">
+          <h4>📊 ประวัติ 24 ชั่วโมง</h4>
+          <div class="chart-container">
+            <canvas id="historyChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="app.js"></script>
+  <script>
+    // Check authentication
+    const token = localStorage.getItem('authToken');
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+    if (!token) {
+      window.location.href = '/login.html';
+    } else {
+      if (user.username) {
+        document.getElementById('user-email').textContent = '👤 ' + user.username;
+      }
+    }
+
+    function toggleUserMenu() {
+      document.getElementById('user-dropdown').classList.toggle('active');
+    }
+
+    function logout() {
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('user');
+      window.location.href = '/login.html';
+    }
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.user-menu')) {
+        document.getElementById('user-dropdown').classList.remove('active');
+      }
+    });
+  </script>
+</body>
+
+</html>
