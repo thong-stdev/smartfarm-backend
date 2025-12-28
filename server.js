@@ -253,15 +253,29 @@ async function storeSensorHistory(deviceId, data) {
     }
 }
 
-// Get sensor history
-async function getSensorHistory(deviceId, limit = 100) {
+// Get sensor history with optional date filtering
+async function getSensorHistory(deviceId, options = {}) {
+    const { limit = 1000, startDate, endDate } = options;
+
     if (useDatabase) {
-        const { data, error } = await supabase
+        let query = supabase
             .from('sensor_history')
             .select('*')
             .eq('device_id', deviceId)
-            .order('recorded_at', { ascending: false })
-            .limit(limit);
+            .order('recorded_at', { ascending: false });
+
+        // Apply date filters if provided
+        if (startDate) {
+            query = query.gte('recorded_at', startDate);
+        }
+        if (endDate) {
+            query = query.lte('recorded_at', endDate);
+        }
+
+        // Apply limit
+        query = query.limit(limit);
+
+        const { data, error } = await query;
 
         if (error) return [];
         return data.map(h => ({
@@ -271,7 +285,18 @@ async function getSensorHistory(deviceId, limit = 100) {
             soilMoisture: h.soil_moisture
         })).reverse();
     }
-    return memorySensorHistory[deviceId] || [];
+
+    // Memory fallback with date filtering
+    let history = memorySensorHistory[deviceId] || [];
+    if (startDate || endDate) {
+        history = history.filter(h => {
+            const ts = new Date(h.timestamp).getTime();
+            if (startDate && ts < new Date(startDate).getTime()) return false;
+            if (endDate && ts > new Date(endDate).getTime()) return false;
+            return true;
+        });
+    }
+    return history.slice(-limit);
 }
 
 // Map device from DB to API format
@@ -690,12 +715,27 @@ app.post('/api/devices/:id/data', async (req, res) => {
     res.json({ success: true });
 });
 
-// Get sensor history
+// Get sensor history with optional date filtering
+// Query params: limit, startDate, endDate
 app.get('/api/devices/:id/history', async (req, res) => {
-    const history = await getSensorHistory(req.params.id);
+    const { limit, startDate, endDate } = req.query;
+
+    const options = {
+        limit: limit ? parseInt(limit) : 1000,
+        startDate: startDate || null,
+        endDate: endDate || null
+    };
+
+    const history = await getSensorHistory(req.params.id, options);
     res.json({
         success: true,
-        data: history
+        data: history,
+        count: history.length,
+        filters: {
+            limit: options.limit,
+            startDate: options.startDate,
+            endDate: options.endDate
+        }
     });
 });
 

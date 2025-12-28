@@ -309,19 +309,81 @@ function closeDetailModal() {
   selectedDevice = null;
 }
 
-async function fetchDeviceHistory(deviceId) {
+async function fetchDeviceHistory(deviceId, startDate = null, endDate = null) {
   try {
-    const response = await fetch(`${API_URL}/api/devices/${deviceId}/history`);
+    let url = `${API_URL}/api/devices/${deviceId}/history?limit=10000`;
+
+    if (startDate) {
+      url += `&startDate=${encodeURIComponent(startDate)}`;
+    }
+    if (endDate) {
+      url += `&endDate=${encodeURIComponent(endDate)}`;
+    }
+
+    const response = await fetch(url);
     const result = await response.json();
 
     if (result.success && result.data.length > 0) {
-      initHistoryChart(result.data);
+      // Sample data to show max 60 points for readability
+      const sampledData = sampleData(result.data, 60);
+      initHistoryChart(sampledData);
     } else {
       initHistoryChart([]);
     }
   } catch (error) {
     initHistoryChart([]);
   }
+}
+
+// Sample data to reduce points for chart readability
+function sampleData(data, maxPoints) {
+  if (data.length <= maxPoints) return data;
+
+  const step = Math.ceil(data.length / maxPoints);
+  const sampled = [];
+
+  for (let i = 0; i < data.length; i += step) {
+    sampled.push(data[i]);
+  }
+
+  // Always include the last point
+  if (sampled[sampled.length - 1] !== data[data.length - 1]) {
+    sampled.push(data[data.length - 1]);
+  }
+
+  return sampled;
+}
+
+// Apply preset time range filter
+function applyHistoryPreset() {
+  const preset = document.getElementById('history-preset').value;
+
+  if (!selectedDevice) return;
+
+  const now = new Date();
+  let startDate;
+
+  switch (preset) {
+    case '1h':
+      startDate = new Date(now.getTime() - 1 * 60 * 60 * 1000);
+      break;
+    case '6h':
+      startDate = new Date(now.getTime() - 6 * 60 * 60 * 1000);
+      break;
+    case '24h':
+      startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      break;
+    case '7d':
+      startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      break;
+    case '30d':
+      startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      break;
+    default:
+      startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  }
+
+  fetchDeviceHistory(selectedDevice.id, startDate.toISOString(), now.toISOString());
 }
 
 function controlPump(turnOn) {
